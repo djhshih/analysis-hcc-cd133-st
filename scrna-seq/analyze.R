@@ -1,79 +1,70 @@
-library(DropletUtils)
 library(scuttle)
 library(scran)
-library(filenamer)
+library(scater)
 library(io)
 library(ggplot2)
 
-min.umi.count <- 500;
+#sce <- qread("sce/Prom1-WT.rds");
+sce <- qread("sce/Prom1-DTA.rds");
+print(dim(sce))
 
-minfo <- read10xMolInfo("./cellranger_all/Prom1-WT/count_Prom1-WT/outs/molecule_info.h5");
+rownames(sce) <- rowData(sce)$Symbol;
 
-samples <- list.files("cellranger", full.names=FALSE);
-names(samples) <- samples;
+sce <- logNormCounts(sce);
 
-e.outs <- lapply(samples,
-	function(s) {
-		out.fn <- filename("empty-drops", path=c("dropletutils", s), ext="rds", date=NA);
-		sce <- read10xCounts(file.path("cellranger", s, "raw_feature_bc_matrix.h5"));
-		e.out <- emptyDrops(sce, lower=min.umi.count);
-		qwrite(e.out, out.fn);
-		e.out
+cl <- quickCluster(sce);
+cl <- factor(cl);
+table(cl)
+
+ggplot(data.frame(colData(sce), cl), aes(x=cl, y=prob_compromised)) +
+	theme_classic() +
+	geom_violin() +
+	scale_y_log10()
+
+colLabels(sce) <- cl;
+
+sce <- runTSNE(sce);
+plotTSNE(sce, colour_by="label", text_by="label");
+plotTSNE(sce, colour_by="dropletutils_fdr", text_by="label");
+plotTSNE(sce, colour_by="sizeFactor", text_by="label");
+plotTSNE(sce, colour_by="subsets_mito_percent", text_by="label");
+
+dec <- modelGeneVar(sce);
+with(dec, plot(mean, total, xlab="mean log-expr", ylab="variance"));
+curve(metadata(dec)$trend(x), col="blue", add=TRUE);
+
+markers <- scoreMarkers(sce);
+
+lapply(markers,
+	function(m) {
+		d <- m[order(m$mean.AUC, decreasing=TRUE)[1:50], c("self.average", "other.average", "mean.AUC")];
+		#rownames(d) <- rowData(sce)$Symbol[match(rownames(d), rowData(sce)$ID)]
+		d
 	}
 )
 
-# ---
+# Prom1-DTA
 
-fdr.cut <- 0.01;
+plotTSNE(sce, colour_by = "Cd55")
 
-for (s in samples) {
 
-	out.fn <- filename("empty-drops", path=c("dropletutils", s), date=NA);
-	pdf.fn <- insert(out.fn, ext="pdf");
+# Prom1-WT
 
-	e.out <- e.outs[[s]];
-	is.cell <- e.out$FDR < fdr.cut & !is.na(e.out$FDR);
-	n.cells <- sum(is.cell);
-	print(n.cells)
-	# parameter npts should be increased 
-	# if there are any non-signicant & limited barcodes
-	table(limited = e.out$Limited, significant = is.cell)
+plotTSNE(sce, colour_by = "Gm42418")
+# Gm42418 gene overlaps rRNA element Rn45s and represent rRNA contamination
+plotTSNE(sce, colour_by = "Alb")
+plotTSNE(sce, colour_by = "Hp")
+plotTSNE(sce, colour_by = "Apoa1")
+plotTSNE(sce, colour_by = "Spp1")
 
-	# diagnosis plots
+plotTSNE(sce, colour_by = "Tm4sf4")
+plotTSNE(sce, colour_by = "Vtn")
 
-	qdraw(
-		with(e.out,
-			plot(Total, -LogProb, col=ifelse(is.cell, "red", "black"),
-				xlab="total UMI count", ylab="- log prob",
-				xlim = c(0, 20000), ylim=c(0, 20000)
-			)
-		),
-		insert(pdf.fn, tag="logp-vs-umi")
-	)
+plotTSNE(sce, colour_by = "Clu")
+plotTSNE(sce, colour_by = "Tesc")
 
-	qdraw(
-		qplot(e.out$Total, geom="histogram", bins=80) +
-			theme_classic() +
-			scale_x_log10(n.breaks=10) +
-			annotation_logticks() +
-			xlab("total UMI count") + ylab("count")
-		,
-		width = 8,
-		insert(pdf.fn, tag=c("hist", "umi-count"))
-	)
+plotTSNE(sce, colour_by = "Serpina1a")
 
-	qdraw(
-		qplot(e.out$Total, geom="histogram", bins=80) +
-			theme_classic() +
-			scale_x_log10(n.breaks=5, limits=c(100, 1e5)) +
-			annotation_logticks() +
-			xlab("total UMI count") + ylab("count")
-		,
-		width = 8,
-		insert(pdf.fn, tag=c("hist", "umi-count", "xlim"))
-	)
-
-	graphics.off()
-
-}
+plotTSNE(sce, colour_by = "Col1a2")
+plotTSNE(sce, colour_by = "Col1a1")
 
