@@ -1,6 +1,0 @@
-DropletUtils
-scuttle
-scran
-filenamer
-io
-ggplot2
