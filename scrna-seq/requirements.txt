@@ -10,3 +10,4 @@ ggtext
 ggplot2
 ggpubr
 cowplot
+binom

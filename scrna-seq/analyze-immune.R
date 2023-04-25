@@ -444,19 +444,8 @@ qdraw(
 
 # ---
 
-enrich.res <- lapply(levels(sce.f2$label1),
-	function(lab) {
-		ct <- with(colData(sce.f2), table(Sample, label1 != lab));
-		fisher.test(ct)
-	}
-);
-enrich.d <- data.frame(
-	label = levels(sce.f2$label1),
-	p = unlist(lapply(enrich.res, function(h) h$p.value)),
-	odds_ratio = unlist(lapply(enrich.res, function(h) h$estimate))
-);
-enrich.d$adj.p <- p.adjust(enrich.d$p, method="bonferroni");
-enrich.d <- enrich.d[order(enrich.d$p), ];
+with(colData(sce.f2), enrich_test(label1, Sample))
+
 
 # depleted in Prom1-DTA samples:
 # cluster 11 (Mpeg1-high macrophages)
@@ -465,38 +454,6 @@ enrich.d <- enrich.d[order(enrich.d$p), ];
 # cluster 6 (macrophages)
 enrich.d[enrich.d$adj.p < 0.05, ]
 
-
-library(binom)
-
-proportions <- function(x, y) {
-	levels.y <- unique(y);
-	ys <- split(y, x);
-	d <- do.call(rbind,
-		mapply(
-			function(y, x) {
-				counts <- table(y);
-				levels.missing <- as.character(setdiff(levels.y, names(counts)));
-				if (length(levels.missing) > 0) {
-					counts[levels.missing] <- 0;
-				}
-				data.frame(
-					binom.confint(counts, sum(counts), method="agresti-coull"),
-					group = x,
-					value = names(counts)
-				)
-			},
-			ys,
-			names(ys),
-			SIMPLIFY = FALSE
-		)
-	);
-	rownames(d) <- NULL;
-
-	d$lower <- pmax(0, d$lower);
-	d$upper <- pmin(1, d$upper);
-
-	d
-}
 
 d.label1 <- proportions(sce.f2$Sample, sce.f2$label1);
 d.label1$group <- sub("-IMM", "", d.label1$group);
