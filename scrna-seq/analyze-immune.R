@@ -198,7 +198,7 @@ dec.f <- modelGeneVar(sce.f);
 with(dec.f, plot(mean, total, xlab="mean log-expr", ylab="variance"));
 curve(metadata(dec.f)$trend(x), col="blue", add=TRUE);
 
-# top 10% of highly variable genes
+# top highly variable genes
 top.hvgs <- getTopHVGs(dec.f, prop=0.3);
 
 # reduce data dimension using PCA
@@ -243,7 +243,7 @@ dec.f2 <- modelGeneVar(sce.f2);
 with(dec.f2, plot(mean, total, xlab="mean log-expr", ylab="variance"));
 curve(metadata(dec.f2)$trend(x), col="blue", add=TRUE);
 
-# top 10% of highly variable genes
+# top highly variable genes
 top.hvgs <- getTopHVGs(dec.f2, prop=0.3);
 
 # reduce data dimension using PCA
