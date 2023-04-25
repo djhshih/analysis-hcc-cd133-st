@@ -355,25 +355,6 @@ plotTSNE(sce.f2, colour_by = "Mzb1", text_by = "label")
 
 with(colData(sce.f2), prop.table(table(Sample, label), margin=1))
 
-enrich.res <- lapply(levels(sce.f2$label),
-	function(lab) {
-		ct <- with(colData(sce.f2), table(Sample, label != lab));
-		fisher.test(ct)
-	}
-);
-enrich.d <- data.frame(
-	label = levels(sce.f2$label),
-	p = unlist(lapply(enrich.res, function(h) h$p.value)),
-	odds_ratio = unlist(lapply(enrich.res, function(h) h$estimate))
-);
-enrich.d$adj.p <- p.adjust(enrich.d$p, method="bonferroni");
-
-# depleted in Prom1-DTA samples:
-# cluster 11 (Mpeg1-high macrophages)
-# cluster 5 (B cells)
-# cluster 3 (T cells)
-# cluster 6 (macrophages)
-enrich.d[enrich.d$adj.p < 0.05, ]
 
 # ---
 
@@ -403,10 +384,34 @@ sce.f2$label1[sce.f2$label == "8"] <- "neutrophil";
 sce.f2$label1[sce.f2$label == "9"] <- "neutrophil";
 sce.f2$label1[sce.f2$label == "10"] <- "hepatocyte";
 sce.f2$label1[sce.f2$label == "11"] <- "Mpeg1-high macrophage";
+sce.f2$label1 <- factor(sce.f2$label1);
 
 table(pred$labels, sce.f2$label1);
 
 plotTSNE(sce.f2, colour_by = "label1", text_by = "label1")
 
 # ---
+
+enrich.res <- lapply(levels(sce.f2$label1),
+	function(lab) {
+		ct <- with(colData(sce.f2), table(Sample, label1 != lab));
+		fisher.test(ct)
+	}
+);
+enrich.d <- data.frame(
+	label = levels(sce.f2$label1),
+	p = unlist(lapply(enrich.res, function(h) h$p.value)),
+	odds_ratio = unlist(lapply(enrich.res, function(h) h$estimate))
+);
+enrich.d$adj.p <- p.adjust(enrich.d$p, method="bonferroni");
+enrich.d <- enrich.d[order(enrich.d$p), ];
+
+# depleted in Prom1-DTA samples:
+# cluster 11 (Mpeg1-high macrophages)
+# cluster 5 (B cells)
+# cluster 3 (T cells)
+# cluster 6 (macrophages)
+enrich.d[enrich.d$adj.p < 0.05, ]
+
+
 
