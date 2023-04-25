@@ -56,19 +56,15 @@ gsets.bp <- msigdbr(species, "C5", "BP");
 	list(mean = markers.mean, min = markers.min)
 }
 
+in.fn <- "sce/immune_filtered.rds";
 
 out.fn <- filename("hcc-cd133", path="immune", tag="immune");
 pdf.fn <- insert(out.fn, ext="pdf");
 rds.fn <- insert(out.fn, ext="rds");
+csv.fn <- insert(out.fn, ext="csv");
 
-sce <- qread("sce/immune_filtered.rds");
+sce <- qread(in.fn);
 print(dim(sce))
-
-sce.neut <- sce[, grepl("neutrophil", sce$label1)];
-table(sce.neut$label1)
-
-sce.mp <- sce[, grepl("macrophage", sce$label1)];
-table(sce.mp$label1)
 
 sce.b <- sce[, grepl("B cell", sce$label1)];
 table(sce.b$label1)
@@ -76,23 +72,31 @@ table(sce.b$label1)
 sce.t <- sce[, grepl("T cell", sce$label1)];
 table(sce.t$label1)
 
-plotHighestExprs(sce.b)
+sce.mp <- sce[, grepl("macrophage", sce$label1)];
+table(sce.mp$label1)
 
-sce.b <- runTSNE(sce.b);
-sce.neut <- runTSNE(sce.neut);
-sce.mp <- runTSNE(sce.mp);
-sce.t <- runTSNE(sce.t);
+sce.neut <- sce[, sce$label1 == "neutrophil"];
+table(sce.neut$label1)
+
+
+# ---
+
+# sce.b <- runTSNE(sce.b);
+# sce.t <- runTSNE(sce.t);
+# sce.mp <- runTSNE(sce.mp);
+# sce.neut <- runTSNE(sce.neut);
+
+# ---
+
+# Analyze B cells
+
+plotHighestExprs(sce.b)
 
 plotTSNE(sce.b, colour_by="Sample", point_alpha=0.3);
 plotTSNE(sce.b, colour_by="total", point_alpha=0.3);
 plotTSNE(sce.b, colour_by="sizeFactor", point_alpha=0.3);
 plotTSNE(sce.b, colour_by="Cd74", point_alpha=0.3);
 
-plotTSNE(sce.t, colour_by="Sample", point_alpha=0.3);
-
-plotTSNE(sce.mp, colour_by="Sample", point_alpha=0.3);
-
-# ---
 
 dec.b <- modelGeneVar(sce.b);
 with(dec.b, plot(mean, total, xlab="mean log-expr", ylab="variance"));
@@ -146,6 +150,7 @@ plotUMAP(sce.b, colour_by="Ptpn6")
 
 # ---
 
+# Analyze T cells
 
 dec.t <- modelGeneVar(sce.t);
 with(dec.t, plot(mean, total, xlab="mean log-expr", ylab="variance"));
@@ -241,12 +246,12 @@ cl.t.lab <- factor(cl.t,
 		"Ncr1+ NK cell",
 		"Gzmk+ Cd8+ T cell",
 		"Capg+ Cd4+ T cell",
-		"Klra5+ Gzmb+ Cd8+ T cell",
-		"Il4+ Socs2+ NK cell"
+		"Klra5+ Cd8+ T cell",
+		"Il4+ NK cell"
 	)
 );
 
-sce$label.t.cell <- "non T cell";
+sce$label.t.cell <- "non-T cell";
 cidx <- match(colnames(sce.t), colnames(sce));
 sce$label.t.cell[cidx] <- as.character(cl.t.lab);
 table(sce$label.t.cell)
@@ -256,4 +261,242 @@ enrich.t[enrich.t$q < fdr.cut, ]
 
 # ---
 
+# Analyze macrophages
+
+dec.mp <- modelGeneVar(sce.mp);
+with(dec.mp, plot(mean, total, xlab="mean log-expr", ylab="variance"));
+curve(metadata(dec.mp)$trend(x), col="blue", add=TRUE);
+
+genes.mp <- .gene_set("MACROPHAGE");
+
+# reduce data dimension using PCA
+sce.mp <- denoisePCA(sce.mp, dec.mp, subset.row=genes.mp);
+dim(reducedDim(sce.b, "PCA"))
+
+sce.mp <- runUMAP(sce.mp, dimred="PCA");
+
+qdraw(
+	ggrastr::rasterize(
+		plotUMAP(sce.mp[, sample(1:ncol(sce.mp))], colour_by="Sample") +
+			coord_fixed()
+	),
+	width = 5, height = 5
+)
+
+set.seed(1337);
+g.mp <- buildSNNGraph(sce.mp, use.dimred="PCA");
+cl.mp <- factor(igraph::cluster_leiden(g.mp,
+ 	resolution_parameter=0.03)$membership);
+table(cl.mp)
+colLabels(sce.mp) <- cl.mp;
+
+qdraw(
+	ggrastr::rasterize(
+		plotUMAP(sce.mp[, sample(1:ncol(sce.mp))], colour_by="label") +
+			coord_fixed()
+	),
+	width = 5, height = 5
+)
+
+plotUMAP(sce.mp, colour_by="Cd14")
+plotUMAP(sce.mp, colour_by="Fcgr3")
+
+markers.mp <- .markers(sce.mp);
+markers.mp$mean
+markers.mp$min
+
+# cluster 1: S100a6-high macrophage
+data.frame(markers.mp$min[[1]])
+plotUMAP(sce.mp, colour_by="S100a6", text_by="label")
+plotUMAP(sce.mp, colour_by="S100a4", text_by="label")
+plotUMAP(sce.mp, colour_by="S100a11", text_by="label")
+plotUMAP(sce.mp, colour_by="Msrb1", text_by="label")
+
+# cluster 2: Cd74+ C1q+ macrophage
+data.frame(markers.mp$min[[2]])
+plotUMAP(sce.mp, colour_by="Cd74", text_by="label")
+plotUMAP(sce.mp, colour_by="C1qb", text_by="label")
+plotUMAP(sce.mp, colour_by="C1qc", text_by="label")
+
+# cluster 3: Mpeg1-high Msr1-high macrophage
+data.frame(markers.mp$min[[3]])
+plotUMAP(sce.mp, colour_by="Mpeg1", text_by="label")
+plotUMAP(sce.mp, colour_by="Msr1", text_by="label")
+plotUMAP(sce.mp, colour_by="Ptprc", text_by="label")
+plotUMAP(sce.mp, colour_by="Itgam", text_by="label")
+plotUMAP(sce.mp, colour_by="Cybb", text_by="label")
+
+# add other cells
+cl.mp.lab <- factor(cl.mp,
+	levels=1:3,
+	labels=c(
+		"S100a6-high macrophage",
+		"Cd74+ C1q+ macrophage",
+		"Mpeg1-high macrophage"
+	)
+);
+
+sce$label.mp.cell <- "non-macrophage";
+cidx <- match(colnames(sce.mp), colnames(sce));
+sce$label.mp.cell[cidx] <- as.character(cl.mp.lab);
+table(sce$label.mp.cell)
+
+enrich.mp <- with(colData(sce), enrich_test(label.mp.cell, Sample));
+enrich.mp[enrich.mp$q < fdr.cut, ]
+
+# ---
+
+# Analyze neutrophils
+
+dec.neut <- modelGeneVar(sce.neut);
+with(dec.neut, plot(mean, total, xlab="mean log-expr", ylab="variance"));
+curve(metadata(dec.neut)$trend(x), col="blue", add=TRUE);
+
+genes.neut <- .gene_set("NEUTROPHIL");
+
+# reduce data dimension using PCA
+sce.neut <- denoisePCA(sce.neut, dec.neut, subset.row=genes.neut);
+dim(reducedDim(sce.b, "PCA"))
+
+sce.neut <- runUMAP(sce.neut, dimred="PCA");
+
+qdraw(
+	ggrastr::rasterize(
+		plotUMAP(sce.neut[, sample(1:ncol(sce.neut))], colour_by="Sample") +
+			coord_fixed()
+	),
+	width = 5, height = 5
+)
+
+set.seed(1337);
+g.neut <- buildSNNGraph(sce.neut, use.dimred="PCA");
+cl.neut <- factor(igraph::cluster_leiden(g.neut,
+ 	resolution_parameter=0.005)$membership);
+table(cl.neut)
+colLabels(sce.neut) <- cl.neut;
+
+qdraw(
+	ggrastr::rasterize(
+		plotUMAP(sce.neut[, sample(1:ncol(sce.neut))], colour_by="label") +
+			coord_fixed()
+	),
+	width = 5, height = 5
+)
+
+plotUMAP(sce.neut, colour_by="Itgam")
+
+markers.neut <- .markers(sce.neut);
+markers.neut$mean
+markers.neut$min
+
+# cluster 1: Ccl6+ Gngt2- Cxcl2+ neutrophil
+data.frame(markers.neut$min[[1]])
+plotUMAP(sce.neut, colour_by="S100a9", text_by="label")
+plotUMAP(sce.neut, colour_by="S100a8", text_by="label")
+plotUMAP(sce.neut, colour_by="S100a11", text_by="label")
+plotUMAP(sce.neut, colour_by="Ccl6", text_by="label")
+
+# cluster 2: Gngt2+ Cxcl2+ neutrophil
+data.frame(markers.neut$min[[2]])
+data.frame(markers.neut$mean[[2]])
+plotUMAP(sce.neut, colour_by="Cxcl2", text_by="label")
+plotUMAP(sce.neut, colour_by="Il1b", text_by="label")
+
+# cluster 3: Gngt2+ Cxcl2- neutrophil
+data.frame(markers.neut$min[[3]])
+data.frame(markers.neut$mean[[3]])
+plotUMAP(sce.neut, colour_by="Gngt2", text_by="label")
+plotUMAP(sce.neut, colour_by="Ppia", text_by="label")
+plotUMAP(sce.neut, colour_by="Cst3", text_by="label")
+
+# add other cells
+cl.neut.lab <- factor(cl.neut,
+	levels=1:3,
+	labels=c(
+		"Gngt2- Cxcl2+ neutrophil",
+		"Gngt2+ Cxcl2+ neutrophil",
+		"Gngt2+ Cxcl2- neutrophil"
+	)
+);
+
+sce$label.neut.cell <- "non-neutrophil";
+cidx <- match(colnames(sce.neut), colnames(sce));
+sce$label.neut.cell[cidx] <- as.character(cl.neut.lab);
+table(sce$label.neut.cell)
+
+enrich.neut <- with(colData(sce), enrich_test(label.neut.cell, Sample));
+enrich.neut
+
+sce$label2 <- as.character(sce$label1);
+cidx <- match(colnames(sce.neut), colnames(sce));
+sce$label2[cidx] <- as.character(cl.neut.lab);
+cidx <- match(colnames(sce.mp), colnames(sce));
+sce$label2[cidx] <- as.character(cl.mp.lab);
+cidx <- match(colnames(sce.t), colnames(sce));
+sce$label2[cidx] <- as.character(cl.t.lab);
+
+table(sce$label2)
+
+enrich.all <- with(colData(sce), enrich_test(label2, Sample));
+enrich.all[enrich.all$q < fdr.cut, ]
+
+qwrite(enrich.all, insert(csv.fn, "enrich"));
+
+# ---
+
+genes.immune <- .gene_set("IMMUN");
+
+genes <- unique(c(genes.immune, genes.b, genes.t, genes.mp, genes.neut));
+
+dec <- modelGeneVar(sce);
+with(dec, plot(mean, total, xlab="mean log-expr", ylab="variance"));
+curve(metadata(dec)$trend(x), col="blue", add=TRUE);
+
+# reduce data dimension using PCA
+sce <- denoisePCA(sce, dec, subset.row=genes, name="PCAsub");
+dim(reducedDim(sce, "PCAsub"))
+
+sce <- runTSNE(sce, dimred="PCA", name="TSNEsub");
+sce <- runUMAP(sce, dimred="PCA", name="UMAPsub");
+
+
+qdraw(
+	ggrastr::rasterize(
+		plotReducedDim(sce, "TSNEsub", colour_by="label2", point_alpha = 0.3) +
+			coord_fixed()
+	),
+	width = 8, height = 8,
+	file = insert(pdf.fn, tag=c("tsne", "clusters2"))
+)
+
+qdraw(
+	ggrastr::rasterize(
+		plotReducedDim(sce, "UMAPsub", colour_by="label2") +
+			coord_fixed()
+	),
+	width = 8, height = 8,
+	file = insert(pdf.fn, tag=c("umap", "clusters2"))
+)
+
+sce.f <- sce[, ! sce$label2 %in% c("hepatocyte", "B1 cell")];
+
+qdraw(
+	ggrastr::rasterize(
+		plotReducedDim(sce.f, "TSNEsub", colour_by="label2") +
+			coord_fixed()
+	),
+	width = 8, height = 8,
+	file = insert(pdf.fn, tag=c("tsne", "clusters2", "clean"))
+)
+
+qdraw(
+	ggrastr::rasterize(
+		plotReducedDim(sce.f, "UMAPsub", colour_by="label2") +
+			coord_fixed()
+	),
+	width = 8, height = 8,
+	file = insert(pdf.fn, tag=c("umap", "clusters2", "clean"))
+)
+
+qwrite(sce, in.fn);
 

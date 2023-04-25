@@ -332,6 +332,7 @@ markers.f2.sel[[11]]  # Mpeg1-high activated macrophages
 plotTSNE(sce.f2, colour_by = "Mpeg1", text_by = "label")
 plotTSNE(sce.f2, colour_by = "Psap", text_by = "label")
 plotTSNE(sce.f2, colour_by = "Cybb", text_by = "label")
+plotTSNE(sce.f2, colour_by = "Ptprc", text_by = "label")
 
 plotTSNE(sce.f2, colour_by = "Msr1", text_by = "label")
 plotTSNE(sce.f2, colour_by = "Prf1", text_by = "label")
