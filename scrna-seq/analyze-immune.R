@@ -10,6 +10,7 @@ library(BiocParallel)
 library(SingleR)
 library(celldex)
 
+
 mc.cores <- 8;
 options(mc.cores = mc.cores);
 
@@ -18,6 +19,10 @@ source("R/common.R");
 .like <- function(s) {
 	grep(s, rownames(sce), value=TRUE, ignore.case=TRUE)
 }
+
+out.fn <- filename("hcc-cd133", path="immune", tag="immune");
+pdf.fn <- insert(out.fn, ext="pdf");
+rds.fn <- insert(out.fn, ext="rds");
 
 
 sce <- qread("sce/immune.rds");
@@ -324,10 +329,11 @@ markers.f2.sel[[5]]   # B cells
 markers.f2.sel[[3]]   # T cells
 
 markers.f2.sel[[11]]  # Mpeg1-high activated macrophages
-plotTSNE(sce.f2, colour_by = "Psap", text_by = "label")
 plotTSNE(sce.f2, colour_by = "Mpeg1", text_by = "label")
+plotTSNE(sce.f2, colour_by = "Psap", text_by = "label")
 plotTSNE(sce.f2, colour_by = "Cybb", text_by = "label")
 
+plotTSNE(sce.f2, colour_by = "Msr1", text_by = "label")
 plotTSNE(sce.f2, colour_by = "Prf1", text_by = "label")
 
 # markers.f2.sel[[12]]  # activated T cells
@@ -388,7 +394,53 @@ sce.f2$label1 <- factor(sce.f2$label1);
 
 table(pred$labels, sce.f2$label1);
 
-plotTSNE(sce.f2, colour_by = "label1", text_by = "label1")
+qdraw(
+	ggrastr::rasterize(
+		plotTSNE(sce.f2, colour_by = "label1", text_by = "label1") +
+		theme(legend.position="none") +
+		coord_fixed()
+	),
+	width = 8, height = 8,
+	file = insert(pdf.fn, c("tsne", "clusters"))
+)
+
+cidx.f2 <- sample(1:ncol(sce.f2));
+qdraw(
+	ggrastr::rasterize(
+		plotTSNE(sce.f2[, cidx.f2], colour_by = "Sample", text_by = "label1") +
+		coord_fixed()
+	),
+	width = 8, height = 8,
+	file = insert(pdf.fn, c("tsne", "sample"))
+)
+
+
+.draw_gene <- function(gene) {
+	qdraw(
+		ggrastr::rasterize(
+			plotTSNE(sce.f2, colour_by = gene) + coord_fixed()
+		),
+		width = 8, height = 8,
+		file = insert(pdf.fn, c("gene", tolower(gene)))
+	)
+}
+
+# Mpeg1 / Perforin-2
+.draw_gene("Mpeg1")
+
+# Msr1 / CD204
+.draw_gene("Msr1")
+
+# M2 macrophage
+.draw_gene("Il10")
+
+.draw_gene("Ighm")  # B cell
+.draw_gene("Trac")  # T cell
+.draw_gene("Klrk1") # NK cell
+.draw_gene("Lyz2")  # macrophages
+.draw_gene("Itgam") # macrophages / neutrophils
+.draw_gene("Neat1")
+
 
 # ---
 
@@ -414,4 +466,76 @@ enrich.d <- enrich.d[order(enrich.d$p), ];
 enrich.d[enrich.d$adj.p < 0.05, ]
 
 
+library(binom)
+
+proportions <- function(x, y) {
+	levels.y <- unique(y);
+	ys <- split(y, x);
+	d <- do.call(rbind,
+		mapply(
+			function(y, x) {
+				counts <- table(y);
+				levels.missing <- as.character(setdiff(levels.y, names(counts)));
+				if (length(levels.missing) > 0) {
+					counts[levels.missing] <- 0;
+				}
+				data.frame(
+					binom.confint(counts, sum(counts), method="agresti-coull"),
+					group = x,
+					value = names(counts)
+				)
+			},
+			ys,
+			names(ys),
+			SIMPLIFY = FALSE
+		)
+	);
+	rownames(d) <- NULL;
+
+	d$lower <- pmax(0, d$lower);
+	d$upper <- pmin(1, d$upper);
+
+	d
+}
+
+d.label1 <- proportions(sce.f2$Sample, sce.f2$label1);
+d.label1$group <- sub("-IMM", "", d.label1$group);
+d.label1$group <- sub("Prom1-", "", d.label1$group);
+d.label1$value[d.label1$value == "Mpeg1-high macrophage"] <- "Mpeg1-high MP";
+
+d.sub <- d.label1[!grepl("neutrophil", d.label1$value), ];
+
+qdraw(
+	ggplot(d.sub, aes(x=group, y=mean, ymin=lower, ymax=upper, fill=value)) +
+		theme_classic() + theme(strip.background = element_blank()) +
+		geom_col() + 
+		geom_errorbar(width=0.3, show.legend=FALSE) +
+		facet_wrap(~ value, nrow=1) +
+		scale_y_continuous(n.breaks=3) +
+		theme(legend.position="none") +
+		scale_fill_nejm() +
+		xlab("") + ylab("proportion")
+	,
+	width = 7, height = 3,
+	file = insert(pdf.fn, c("cell-type-prop"))
+);
+
+d.neut <- d.label1[grepl("neutrophil", d.label1$value), ];
+
+qdraw(
+	ggplot(d.neut, aes(x=group, y=mean, ymin=lower, ymax=upper, fill=value)) +
+		theme_classic() + theme(strip.background = element_blank()) +
+		geom_col() + 
+		geom_errorbar(width=0.3, show.legend=FALSE) +
+		facet_wrap(~ value, nrow=1) +
+		scale_y_continuous(n.breaks=3) +
+		theme(legend.position="none") +
+		scale_fill_nejm() +
+		xlab("") + ylab("proportion")
+	,
+	width = 3, height = 3,
+	file = insert(pdf.fn, c("cell-type-prop", "neutrophil"))
+);
+
+qwrite(sce.f2, "sce/immune_filtered.rds");
 
