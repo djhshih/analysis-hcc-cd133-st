@@ -2,13 +2,15 @@ library(scuttle)
 library(scran)
 library(io)
 library(ggplot2)
+library(DropletUtils)
 
-# samples <- c("Prom1-DTA", "Prom1-WT");
-# group <- "non-immune"
-
-samples <- c("Prom1-DTA-IMM", "Prom1-WT-IMM");
-group <- "immune"
+samples <- c("Prom1-DTA", "Prom1-WT");
+group <- "non-immune"
 tag <- NULL;
+
+#samples <- c("Prom1-DTA-IMM", "Prom1-WT-IMM");
+#group <- "immune"
+#tag <- NULL;
 
 minfo <- read10xMolInfo(sprintf("./cellranger_all/%s/count_%s/outs/molecule_info.h5", samples[1], samples[1]));
 
