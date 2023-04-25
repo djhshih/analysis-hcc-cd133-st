@@ -192,6 +192,9 @@ gene_prop_plot <- function(sce, gene, group_by, cols=NULL, threshold=0) {
 }
 
 enrich_test <- function(value, group) {
+	if (!is.factor(value)) {
+		value <- factor(value);
+	}
 	enrich.res <- lapply(levels(value),
 		function(v) {
 			ct <- table(group, value != v);
