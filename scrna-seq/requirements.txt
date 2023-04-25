@@ -5,3 +5,8 @@ scater
 bluster
 MAST
 miQC
+ggsci
+ggtext
+ggplot2
+ggpubr
+cowplot
