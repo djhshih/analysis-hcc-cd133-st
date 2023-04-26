@@ -3,13 +3,10 @@ library(scran)
 library(scater)
 library(io)
 library(ggplot2)
-
 library(scDblFinder)
 library(BiocParallel)
-
 library(SingleR)
 library(celldex)
-
 library(msigdbr)
 library(dplyr)
 
@@ -24,10 +21,10 @@ source("R/common.R");
 	grep(s, rownames(sce), value=TRUE, ignore.case=TRUE)
 }
 
+species <- "Mus musculus";
 gsets.bp <- msigdbr(species, "C5", "BP");
 
 .gene_set <- function(keyword) {
-	species <- "Mus musculus";
 	gsets.bp.b.cell <- filter(gsets.bp, grepl(keyword, gs_name));
 	genes.sel <- intersect(gsets.bp.b.cell$gene_symbol, rownames(sce));
 }
@@ -78,7 +75,6 @@ table(sce.mp$label1)
 sce.neut <- sce[, sce$label1 == "neutrophil"];
 table(sce.neut$label1)
 
-
 # ---
 
 # sce.b <- runTSNE(sce.b);
@@ -115,11 +111,12 @@ qdraw(
 		plotUMAP(sce.b, colour_by="Sample") +
 			coord_fixed()
 	),
-	width = 5, height = 5
+	width = 5, height = 5,
+	file = insert(pdf.fn, c("b-cell", "umap", "sample"))
 )
 
-sce.b <- runTSNE(sce.b, dimred="PCA");
-plotTSNE(sce.b, colour_by="Sample", point_alpha=0.3);
+# sce.b <- runTSNE(sce.b, dimred="PCA");
+# plotTSNE(sce.b, colour_by="Sample", point_alpha=0.3);
 
 set.seed(1337);
 g.b <- buildSNNGraph(sce.b, use.dimred="PCA");
@@ -128,12 +125,17 @@ cl.b <- factor(igraph::cluster_leiden(g.b,
 table(cl.b)
 colLabels(sce.b) <- cl.b;
 
+.draw_umap <- function(expr) {
+	
+}
+
 qdraw(
 	ggrastr::rasterize(
 		plotUMAP(sce.b, colour_by="label") +
 			coord_fixed()
 	),
-	width = 5, height = 5
+	width = 5, height = 5,
+	file = insert(pdf.fn, c("b-cell", "umap", "clusters"))
 )
 
 with(colData(sce.b), prop.table(table(Sample, label), 1))
@@ -144,6 +146,7 @@ markers.b$min
 
 plotUMAP(sce.b, colour_by="Ighm")
 plotUMAP(sce.b, colour_by="Igkc")
+
 plotUMAP(sce.b, colour_by="Ptpn6")
 
 # no obvious clusters among B cells
@@ -438,9 +441,83 @@ sce$label2[cidx] <- as.character(cl.t.lab);
 table(sce$label2)
 
 enrich.all <- with(colData(sce), enrich_test(label2, Sample));
+enrich.all <- dplyr::rename(enrich.all, group = value);
+
 enrich.all[enrich.all$q < fdr.cut, ]
 
 qwrite(enrich.all, insert(csv.fn, "enrich"));
+
+# ---
+
+# enrichment plots
+
+d.label2 <- proportions(sce$Sample, sce$label2);
+d.label2$group <- sub("-IMM", "", d.label2$group);
+d.label2$group <- sub("Prom1-", "", d.label2$group);
+d.label2$group <- relevel(factor(d.label2$group), "WT");
+
+d.label2$cell_type <- gsub(
+	"(.*)((NK cell)|(T cell)|(B cell)|(neutrophil)|(macrophage))", "\\2",
+	d.label2$value
+);
+
+d.label2$cell_subtype <- trimws(gsub(
+	"(.*)((NK cell)|(T cell)|(B cell)|(neutrophil)|(macrophage))", "\\1",
+	d.label2$value
+));
+
+d.sub <- dplyr::filter(d.label2,
+	! value %in% c("B1 cell", "hepatocyte")
+);
+
+d.subs <- split(d.sub, d.sub$cell_type);
+
+cols.cell.type <- pal_nejm()(length(d.subs));
+
+for (ctype in names(d.subs)) {
+	k <- length(unique(d.subs[[ctype]]$cell_subtype));
+	qdraw(
+		ggplot(d.subs[[ctype]], aes(x=group, y=mean, ymin=lower, ymax=upper)) +
+			labs(title = ctype) +
+			theme_classic() + 
+			geom_col(fill = cols.cell.type[k]) +
+			geom_errorbar(width=0.3, show.legend=FALSE) +
+			facet_grid(. ~ cell_subtype, scales="free") +
+			scale_y_continuous(n.breaks=3) +
+			scale_fill_nejm() +
+			theme(
+				legend.position = "none", 
+				strip.background = element_blank(),
+				strip.clip = "off"
+			) +
+			xlab("") + ylab("proportion")
+		,
+		width = 0.5 + k * 1, height = 3,
+		file = insert(pdf.fn, c("cell-subtype-prop", sanitize_fn(ctype)))
+	);
+}
+
+d.sub.sig <- left_join(d.sub, enrich.all, by=c("value"="group"));
+
+qdraw(
+	ggplot(d.sub.sig,
+			aes(x = group, y = cell_subtype, size = mean, colour = cell_type, alpha = q)
+		) +
+		theme_classic() +
+		theme(
+			strip.background = element_blank(),
+			strip.clip = "off",
+		) +
+		scale_size_continuous(name = "proportion", trans = "log10") +
+		scale_colour_nejm(guide = FALSE) +
+		scale_alpha_continuous(name = "FDR", trans = revlog_trans()) +
+		facet_grid(cell_type ~ ., scales="free_y", space = "free", switch = "y") +
+		geom_point() +
+		xlab("treatment") + ylab("cell type")
+	,
+	width = 3, height = 5,
+	file = insert(pdf.fn, c("cell-subtype-prop"))
+);
 
 # ---
 

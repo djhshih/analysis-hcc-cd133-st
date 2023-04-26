@@ -24,6 +24,10 @@ revlog_trans <- function(base = 10) {
 	)
 }
 
+sanitize_fn <- function(s) {
+	gsub(" ", "-", trimws(tolower(s)))
+}
+
 capitalize <- function(s) {
 	ifelse(is.na(s),
 		NA, 

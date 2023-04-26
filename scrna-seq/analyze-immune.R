@@ -3,13 +3,10 @@ library(scran)
 library(scater)
 library(io)
 library(ggplot2)
-
 library(scDblFinder)
 library(BiocParallel)
-
 library(SingleR)
 library(celldex)
-
 
 mc.cores <- 8;
 options(mc.cores = mc.cores);
@@ -61,6 +58,7 @@ cidx <- sample(1:ncol(sce));
 plotTSNE(sce[, cidx], colour_by="label", text_by="label", point_alpha=0.3);
 
 plotTSNE(sce[, cidx], colour_by="total", text_by="label", point_alpha=0.3);
+plotTSNE(sce[, cidx], colour_by="sum", text_by="label");
 plotTSNE(sce[, cidx], colour_by="sizeFactor", text_by="label");
 plotTSNE(sce[, cidx], colour_by="subsets_mito_percent", text_by="label", point_alpha=0.3);
 plotTSNE(sce[, cidx], colour_by="Sample", text_by="label", point_alpha=0.3);
@@ -131,7 +129,7 @@ plotUMAP(sce, colour_by = "Cybb", text_by = "label")    # macrophages
 
 # B cell
 
-plotTSNE(sce, colour_by = "Cd79a", text_by = "label")
+plotTSNE(sce, colour_by = "Cd79a")
 plotTSNE(sce, colour_by = "Cd79b")
 plotTSNE(sce, colour_by = "Ighd")
 plotTSNE(sce, colour_by = "Ighm")
