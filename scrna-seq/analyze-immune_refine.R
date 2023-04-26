@@ -17,6 +17,8 @@ options(mc.cores = mc.cores);
 
 source("R/common.R");
 
+# ---
+
 .like <- function(s) {
 	grep(s, rownames(sce), value=TRUE, ignore.case=TRUE)
 }
@@ -52,6 +54,18 @@ gsets.bp <- msigdbr(species, "C5", "BP");
 	);
 	list(mean = markers.mean, min = markers.min)
 }
+
+.draw_umap <- function(sce, width = 5, height = 5, file = NULL, ...) {
+	cidx <- sample(1:ncol(sce));
+	qdraw(
+		ggrastr::rasterize(
+			plotUMAP(sce[, cidx], ...) + coord_fixed()
+		),		
+		width = width, height = height, file = file
+	);
+}
+
+# ---
 
 in.fn <- "sce/immune_filtered.rds";
 
@@ -106,17 +120,10 @@ dim(reducedDim(sce.b, "PCA"))
 
 sce.b <- runUMAP(sce.b, dimred="PCA");
 
-qdraw(
-	ggrastr::rasterize(
-		plotUMAP(sce.b, colour_by="Sample") +
-			coord_fixed()
-	),
-	width = 5, height = 5,
+.draw_umap(
+	sce.b, colour_by="Sample",
 	file = insert(pdf.fn, c("b-cell", "umap", "sample"))
 )
-
-# sce.b <- runTSNE(sce.b, dimred="PCA");
-# plotTSNE(sce.b, colour_by="Sample", point_alpha=0.3);
 
 set.seed(1337);
 g.b <- buildSNNGraph(sce.b, use.dimred="PCA");
@@ -125,16 +132,8 @@ cl.b <- factor(igraph::cluster_leiden(g.b,
 table(cl.b)
 colLabels(sce.b) <- cl.b;
 
-.draw_umap <- function(expr) {
-	
-}
-
-qdraw(
-	ggrastr::rasterize(
-		plotUMAP(sce.b, colour_by="label") +
-			coord_fixed()
-	),
-	width = 5, height = 5,
+.draw_umap(
+	sce.b, colour_by="label",
 	file = insert(pdf.fn, c("b-cell", "umap", "clusters"))
 )
 
@@ -147,7 +146,10 @@ markers.b$min
 plotUMAP(sce.b, colour_by="Ighm")
 plotUMAP(sce.b, colour_by="Igkc")
 
-plotUMAP(sce.b, colour_by="Ptpn6")
+.draw_umap(
+	sce.b, colour_by="Ptpn6",
+	file = insert(pdf.fn, c("b-cell", "umap", "ptpn6"))
+)
 
 # no obvious clusters among B cells
 
@@ -175,6 +177,11 @@ qdraw(
 	width = 5, height = 5
 )
 
+.draw_umap(
+	sce.t, colour_by="Sample",
+	file = insert(pdf.fn, c("t-cell", "umap", "sample"))
+);
+
 set.seed(1337);
 g.t <- buildSNNGraph(sce.t, use.dimred="PCA");
 cl.t <- factor(igraph::cluster_leiden(g.t,
@@ -182,19 +189,30 @@ cl.t <- factor(igraph::cluster_leiden(g.t,
 table(cl.t)
 colLabels(sce.t) <- cl.t;
 
-qdraw(
-	ggrastr::rasterize(
-		plotUMAP(sce.t[, sample(1:ncol(sce.t))], colour_by="label") +
-			coord_fixed()
-	),
-	width = 5, height = 5
-)
+.draw_umap(
+	sce.t, colour_by="label",
+	file = insert(pdf.fn, c("t-cell", "umap", "clusters"))
+);
 
+.draw_umap(
+	sce.t, colour_by="Cd4",
+	file = insert(pdf.fn, c("t-cell", "umap", "cd4"))
+);
 
-plotUMAP(sce.t, colour_by="Cd4")
-plotUMAP(sce.t, colour_by="Cd8a")
-plotUMAP(sce.t, colour_by="Klrk1")
+.draw_umap(
+	sce.t, colour_by="Cd8a",
+	file = insert(pdf.fn, c("t-cell", "umap", "cd8a"))
+);
 
+.draw_umap(
+	sce.t, colour_by="Cd8b1",
+	file = insert(pdf.fn, c("t-cell", "umap", "cd8b1"))
+);
+
+.draw_umap(
+	sce.t, colour_by="Klrk1",
+	file = insert(pdf.fn, c("t-cell", "umap", "klrk1"))
+);
 
 markers.t <- .markers(sce.t);
 markers.t$mean
@@ -202,43 +220,87 @@ markers.t$min
 
 # cluster 1: Cd4+ T cell (Lef1+, Tcf7+)
 data.frame(markers.t$min[[1]])
-plotUMAP(sce.t, colour_by="Lef1", text_by="label")
-plotUMAP(sce.t, colour_by="Tcf7", text_by="label")
+.draw_umap(
+	sce.t, colour_by="Lef1",
+	file = insert(pdf.fn, c("t-cell", "umap", "lef1"))
+);
+.draw_umap(
+	sce.t, colour_by="Tcf7",
+	file = insert(pdf.fn, c("t-cell", "umap", "tcf7"))
+);
 
 # cluster 2: Cd8+ T cell (Lef1+, Tcf7+)
 data.frame(markers.t$min[[2]])
 data.frame(markers.t$mean[[2]])
-plotUMAP(sce.t, colour_by="Cd8b1", text_by="label")
-plotUMAP(sce.t, colour_by="Ccr7", text_by="label")
+.draw_umap(
+	sce.t, colour_by="Ccr7",
+	file = insert(pdf.fn, c("t-cell", "umap", "ccr7"))
+);
 
 # cluster 3: NK cell (Ncr1+, Prf1+)
 data.frame(markers.t$min[[3]])
-plotUMAP(sce.t, colour_by="Ncr1", text_by="label")
-plotUMAP(sce.t, colour_by="Prf1", text_by="label")
+.draw_umap(
+	sce.t, colour_by="Ncr1",
+	file = insert(pdf.fn, c("t-cell", "umap", "ncr1"))
+);
+.draw_umap(
+	sce.t, colour_by="Prf1",
+	file = insert(pdf.fn, c("t-cell", "umap", "prf1"))
+);
 
 # cluster 4: Cd8+ T cell, activated (Gzmk+, Ccl5+, Nkg7+)
 data.frame(markers.t$min[[4]])
 data.frame(markers.t$mean[[4]])
-plotUMAP(sce.t, colour_by="Cd48", text_by="label")
-plotUMAP(sce.t, colour_by="Ccl5", text_by="label")
-plotUMAP(sce.t, colour_by="Nkg7", text_by="label")
-plotUMAP(sce.t, colour_by="Gzmk", text_by="label")
+.draw_umap(
+	sce.t, colour_by="Cd48",
+	file = insert(pdf.fn, c("t-cell", "umap", "cd48"))
+);
+.draw_umap(
+	sce.t, colour_by="Ccl5",
+	file = insert(pdf.fn, c("t-cell", "umap", "ccl5"))
+);
+.draw_umap(
+	sce.t, colour_by="Nkg7",
+	file = insert(pdf.fn, c("t-cell", "umap", "nkg7"))
+);
+.draw_umap(
+	sce.t, colour_by="Gzmk",
+	file = insert(pdf.fn, c("t-cell", "umap", "gzmk"))
+);
 
 # cluster 5: Cd4+ T cell
 data.frame(markers.t$min[[5]])
-plotUMAP(sce.t, colour_by="Capg", text_by="label")
+.draw_umap(
+	sce.t, colour_by="Capg",
+	file = insert(pdf.fn, c("t-cell", "umap", "capg"))
+);
 
 # cluster 6: Cd8+ T cell, activated (Cd7+, Gzmb+, Klra5+, Gzmk+, Ccl5+, Nkg7+)
 data.frame(markers.t$min[[6]])
-plotUMAP(sce.t, colour_by="Cd7", text_by="label")
-plotUMAP(sce.t, colour_by="Gzmb", text_by="label")
-plotUMAP(sce.t, colour_by="Klra5", text_by="label")
+.draw_umap(
+	sce.t, colour_by="Cd7",
+	file = insert(pdf.fn, c("t-cell", "umap", "cd7"))
+);
+.draw_umap(
+	sce.t, colour_by="Gzmb",
+	file = insert(pdf.fn, c("t-cell", "umap", "gzmb"))
+);
+.draw_umap(
+	sce.t, colour_by="Klra5",
+	file = insert(pdf.fn, c("t-cell", "umap", "klra5"))
+);
 
 # cluster 7: NK cells (Il4+, Socs2+ Gzmb+, Ccl5+)
 data.frame(markers.t$min[[7]])
 data.frame(markers.t$mean[[7]])
-plotUMAP(sce.t, colour_by="Il4", text_by="label")
-plotUMAP(sce.t, colour_by="Socs2", text_by="label")
+.draw_umap(
+	sce.t, colour_by="Il4",
+	file = insert(pdf.fn, c("t-cell", "umap", "il4"))
+);
+.draw_umap(
+	sce.t, colour_by="Socs2",
+	file = insert(pdf.fn, c("t-cell", "umap", "socs2"))
+);
 
 # add other cells
 cl.t.lab <- factor(cl.t,
@@ -252,6 +314,12 @@ cl.t.lab <- factor(cl.t,
 		"Klra5+ Cd8+ T cell",
 		"Il4+ NK cell"
 	)
+);
+
+sce.t$label <- cl.t.lab
+.draw_umap(
+	sce.t, colour_by="label",
+	file = insert(pdf.fn, c("t-cell", "umap", "clusters"))
 );
 
 sce$label.t.cell <- "non-T cell";
@@ -278,13 +346,10 @@ dim(reducedDim(sce.b, "PCA"))
 
 sce.mp <- runUMAP(sce.mp, dimred="PCA");
 
-qdraw(
-	ggrastr::rasterize(
-		plotUMAP(sce.mp[, sample(1:ncol(sce.mp))], colour_by="Sample") +
-			coord_fixed()
-	),
-	width = 5, height = 5
-)
+.draw_umap(
+	sce.mp, colour_by="Sample",
+	file = insert(pdf.fn, c("mp", "umap", "sample"))
+);
 
 set.seed(1337);
 g.mp <- buildSNNGraph(sce.mp, use.dimred="PCA");
@@ -293,16 +358,20 @@ cl.mp <- factor(igraph::cluster_leiden(g.mp,
 table(cl.mp)
 colLabels(sce.mp) <- cl.mp;
 
-qdraw(
-	ggrastr::rasterize(
-		plotUMAP(sce.mp[, sample(1:ncol(sce.mp))], colour_by="label") +
-			coord_fixed()
-	),
-	width = 5, height = 5
-)
+.draw_umap(
+	sce.mp, colour_by="label",
+	file = insert(pdf.fn, c("mp", "umap", "clusters"))
+);
 
-plotUMAP(sce.mp, colour_by="Cd14")
-plotUMAP(sce.mp, colour_by="Fcgr3")
+.draw_umap(
+	sce.mp, colour_by="Cd14",
+	file = insert(pdf.fn, c("mp", "umap", "cd14"))
+);
+
+.draw_umap(
+	sce.mp, colour_by="Fcgr3",
+	file = insert(pdf.fn, c("mp", "umap", "fcgr3"))
+);
 
 markers.mp <- .markers(sce.mp);
 markers.mp$mean
@@ -310,24 +379,60 @@ markers.mp$min
 
 # cluster 1: S100a6-high macrophage
 data.frame(markers.mp$min[[1]])
-plotUMAP(sce.mp, colour_by="S100a6", text_by="label")
-plotUMAP(sce.mp, colour_by="S100a4", text_by="label")
-plotUMAP(sce.mp, colour_by="S100a11", text_by="label")
-plotUMAP(sce.mp, colour_by="Msrb1", text_by="label")
+.draw_umap(
+	sce.mp, colour_by="S100a6",
+	file = insert(pdf.fn, c("mp", "umap", "s100a6"))
+);
+.draw_umap(
+	sce.mp, colour_by="S100a4",
+	file = insert(pdf.fn, c("mp", "umap", "s100a4"))
+);
+.draw_umap(
+	sce.mp, colour_by="S100a11",
+	file = insert(pdf.fn, c("mp", "umap", "s100a11"))
+);
+.draw_umap(
+	sce.mp, colour_by="Msrb1",
+	file = insert(pdf.fn, c("mp", "umap", "msrb1"))
+);
 
 # cluster 2: Cd74+ C1q+ macrophage
 data.frame(markers.mp$min[[2]])
-plotUMAP(sce.mp, colour_by="Cd74", text_by="label")
-plotUMAP(sce.mp, colour_by="C1qb", text_by="label")
-plotUMAP(sce.mp, colour_by="C1qc", text_by="label")
+.draw_umap(
+	sce.mp, colour_by="Cd74",
+	file = insert(pdf.fn, c("mp", "umap", "cd74"))
+);
+.draw_umap(
+	sce.mp, colour_by="C1qb",
+	file = insert(pdf.fn, c("mp", "umap", "c1qb"))
+);
+.draw_umap(
+	sce.mp, colour_by="C1qc",
+	file = insert(pdf.fn, c("mp", "umap", "c1qc"))
+);
 
 # cluster 3: Mpeg1-high Msr1-high macrophage
 data.frame(markers.mp$min[[3]])
-plotUMAP(sce.mp, colour_by="Mpeg1", text_by="label")
-plotUMAP(sce.mp, colour_by="Msr1", text_by="label")
-plotUMAP(sce.mp, colour_by="Ptprc", text_by="label")
-plotUMAP(sce.mp, colour_by="Itgam", text_by="label")
-plotUMAP(sce.mp, colour_by="Cybb", text_by="label")
+.draw_umap(
+	sce.mp, colour_by="Mpeg1",
+	file = insert(pdf.fn, c("mp", "umap", "mpeg1"))
+);
+.draw_umap(
+	sce.mp, colour_by="Msr1",
+	file = insert(pdf.fn, c("mp", "umap", "msr1"))
+);
+.draw_umap(
+	sce.mp, colour_by="Ptprc",
+	file = insert(pdf.fn, c("mp", "umap", "ptprc"))
+);
+.draw_umap(
+	sce.mp, colour_by="Itgam",
+	file = insert(pdf.fn, c("mp", "umap", "itgam"))
+);
+.draw_umap(
+	sce.mp, colour_by="Cybb",
+	file = insert(pdf.fn, c("mp", "umap", "cybb"))
+);
 
 # add other cells
 cl.mp.lab <- factor(cl.mp,
@@ -337,6 +442,12 @@ cl.mp.lab <- factor(cl.mp,
 		"Cd74+ C1q+ macrophage",
 		"Mpeg1-high macrophage"
 	)
+);
+
+sce.mp$label <- cl.mp.lab;
+.draw_umap(
+	sce.mp, colour_by="label",
+	file = insert(pdf.fn, c("mp", "umap", "clusters"))
 );
 
 sce$label.mp.cell <- "non-macrophage";
@@ -363,13 +474,10 @@ dim(reducedDim(sce.b, "PCA"))
 
 sce.neut <- runUMAP(sce.neut, dimred="PCA");
 
-qdraw(
-	ggrastr::rasterize(
-		plotUMAP(sce.neut[, sample(1:ncol(sce.neut))], colour_by="Sample") +
-			coord_fixed()
-	),
-	width = 5, height = 5
-)
+.draw_umap(
+	sce.neut, colour_by="Sample",
+	file = insert(pdf.fn, c("neut", "umap", "sample"))
+);
 
 set.seed(1337);
 g.neut <- buildSNNGraph(sce.neut, use.dimred="PCA");
@@ -378,15 +486,10 @@ cl.neut <- factor(igraph::cluster_leiden(g.neut,
 table(cl.neut)
 colLabels(sce.neut) <- cl.neut;
 
-qdraw(
-	ggrastr::rasterize(
-		plotUMAP(sce.neut[, sample(1:ncol(sce.neut))], colour_by="label") +
-			coord_fixed()
-	),
-	width = 5, height = 5
-)
-
-plotUMAP(sce.neut, colour_by="Itgam")
+.draw_umap(
+	sce.neut, colour_by="label",
+	file = insert(pdf.fn, c("neut", "umap", "clusters"))
+);
 
 markers.neut <- .markers(sce.neut);
 markers.neut$mean
@@ -394,23 +497,50 @@ markers.neut$min
 
 # cluster 1: Ccl6+ Gngt2- Cxcl2+ neutrophil
 data.frame(markers.neut$min[[1]])
-plotUMAP(sce.neut, colour_by="S100a9", text_by="label")
-plotUMAP(sce.neut, colour_by="S100a8", text_by="label")
-plotUMAP(sce.neut, colour_by="S100a11", text_by="label")
-plotUMAP(sce.neut, colour_by="Ccl6", text_by="label")
+.draw_umap(
+	sce.neut, colour_by="S100a9",
+	file = insert(pdf.fn, c("mp", "umap", "s100a9"))
+);
+.draw_umap(
+	sce.neut, colour_by="S100a8",
+	file = insert(pdf.fn, c("mp", "umap", "s100a8"))
+);
+.draw_umap(
+	sce.neut, colour_by="S100a11",
+	file = insert(pdf.fn, c("mp", "umap", "s100a11"))
+);
+.draw_umap(
+	sce.neut, colour_by="Ccl6",
+	file = insert(pdf.fn, c("mp", "umap", "ccl6"))
+);
 
 # cluster 2: Gngt2+ Cxcl2+ neutrophil
 data.frame(markers.neut$min[[2]])
 data.frame(markers.neut$mean[[2]])
-plotUMAP(sce.neut, colour_by="Cxcl2", text_by="label")
-plotUMAP(sce.neut, colour_by="Il1b", text_by="label")
+.draw_umap(
+	sce.neut, colour_by="Cxcl2",
+	file = insert(pdf.fn, c("mp", "umap", "cxcl2"))
+);
+.draw_umap(
+	sce.neut, colour_by="Il1b",
+	file = insert(pdf.fn, c("mp", "umap", "il1b"))
+);
 
 # cluster 3: Gngt2+ Cxcl2- neutrophil
 data.frame(markers.neut$min[[3]])
 data.frame(markers.neut$mean[[3]])
-plotUMAP(sce.neut, colour_by="Gngt2", text_by="label")
-plotUMAP(sce.neut, colour_by="Ppia", text_by="label")
-plotUMAP(sce.neut, colour_by="Cst3", text_by="label")
+.draw_umap(
+	sce.neut, colour_by="Gngt2",
+	file = insert(pdf.fn, c("mp", "umap", "gngt2"))
+);
+.draw_umap(
+	sce.neut, colour_by="Ppia",
+	file = insert(pdf.fn, c("mp", "umap", "ppia"))
+);
+.draw_umap(
+	sce.neut, colour_by="Cst3",
+	file = insert(pdf.fn, c("mp", "umap", "cst3"))
+);
 
 # add other cells
 cl.neut.lab <- factor(cl.neut,
@@ -422,6 +552,12 @@ cl.neut.lab <- factor(cl.neut,
 	)
 );
 
+sce.neut$label <- cl.neut.lab;
+.draw_umap(
+	sce.neut, colour_by="label",
+	file = insert(pdf.fn, c("neut", "umap", "clusters"))
+);
+
 sce$label.neut.cell <- "non-neutrophil";
 cidx <- match(colnames(sce.neut), colnames(sce));
 sce$label.neut.cell[cidx] <- as.character(cl.neut.lab);
@@ -429,6 +565,10 @@ table(sce$label.neut.cell)
 
 enrich.neut <- with(colData(sce), enrich_test(label.neut.cell, Sample));
 enrich.neut
+
+# ---
+
+# Identify enriched or depleted cell subtypes in treatment vs. control
 
 sce$label2 <- as.character(sce$label1);
 cidx <- match(colnames(sce.neut), colnames(sce));
@@ -520,6 +660,8 @@ qdraw(
 );
 
 # ---
+
+# Generate overall TSNE and UMAP plots
 
 genes.immune <- .gene_set("IMMUN");
 
