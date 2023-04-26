@@ -40,7 +40,7 @@ gsets.bp <- msigdbr(species, "C5", "BP");
 		function(m) {
 			m[
 				order(m$mean.AUC, decreasing=TRUE)[1:n],
-				c("self.average", "other.average", "mean.AUC")
+				c("self.average", "other.average", "mean.AUC", "min.AUC")
 			]
 		}
 	);
@@ -48,11 +48,11 @@ gsets.bp <- msigdbr(species, "C5", "BP");
 		function(m) {
 			m[
 				order(m$min.AUC, decreasing=TRUE)[1:n],
-				c("self.average", "other.average", "min.AUC")
+				c("self.average", "other.average", "mean.AUC", "min.AUC")
 			]
 		}
 	);
-	list(mean = markers.mean, min = markers.min)
+	list(all = markers, mean = markers.mean, min = markers.min)
 }
 
 .draw_umap <- function(sce, width = 5, height = 5, file = NULL, ...) {
@@ -568,6 +568,40 @@ enrich.neut
 
 # ---
 
+# Write markers for each subcluster
+
+markers.b <- .markers(sce.b);
+markers.t <- .markers(sce.t);
+markers.mp <- .markers(sce.mp);
+markers.neut <- .markers(sce.neut);
+
+combine_markers <- function(markers.d) {
+	d <- do.call(
+		rbind,
+		mapply(
+			function(cl, d) data.frame(cluster = cl, gene=rownames(d), d, row.names=NULL),
+			names(markers.d), markers.d,
+			SIMPLIFY = FALSE
+		)
+	);
+	rownames(d) <- NULL;
+	d
+}
+
+markers.t.d <- combine_markers(markers.t$mean);
+qwrite(markers.t.d, insert(csv.fn, c("t-cell", "markers")));
+
+markers.b.d <- combine_markers(markers.b$mean);
+qwrite(markers.b.d, insert(csv.fn, c("b-cell", "markers")));
+
+markers.mp.d <- combine_markers(markers.mp$mean);
+qwrite(markers.mp.d, insert(csv.fn, c("mp", "markers")));
+
+markers.neut.d <- combine_markers(markers.neut$mean);
+qwrite(markers.mp.d, insert(csv.fn, c("neut", "markers")));
+
+# ---
+
 # Identify enriched or depleted cell subtypes in treatment vs. control
 
 sce$label2 <- as.character(sce$label1);
@@ -682,7 +716,7 @@ sce <- runUMAP(sce, dimred="PCA", name="UMAPsub");
 qdraw(
 	ggrastr::rasterize(
 		plotReducedDim(sce, "TSNEsub", colour_by="label2", point_alpha = 0.3) +
-			coord_fixed()
+			coord_fixed() + theme(legend.title = element_blank())
 	),
 	width = 8, height = 8,
 	file = insert(pdf.fn, tag=c("tsne", "clusters2"))
@@ -691,7 +725,7 @@ qdraw(
 qdraw(
 	ggrastr::rasterize(
 		plotReducedDim(sce, "UMAPsub", colour_by="label2") +
-			coord_fixed()
+			coord_fixed() + theme(legend.title = element_blank())
 	),
 	width = 8, height = 8,
 	file = insert(pdf.fn, tag=c("umap", "clusters2"))
@@ -702,7 +736,7 @@ sce.f <- sce[, ! sce$label2 %in% c("hepatocyte", "B1 cell")];
 qdraw(
 	ggrastr::rasterize(
 		plotReducedDim(sce.f, "TSNEsub", colour_by="label2") +
-			coord_fixed()
+			coord_fixed() + theme(legend.title = element_blank())
 	),
 	width = 8, height = 8,
 	file = insert(pdf.fn, tag=c("tsne", "clusters2", "clean"))
@@ -711,7 +745,7 @@ qdraw(
 qdraw(
 	ggrastr::rasterize(
 		plotReducedDim(sce.f, "UMAPsub", colour_by="label2") +
-			coord_fixed()
+			coord_fixed() + theme(legend.title = element_blank())
 	),
 	width = 8, height = 8,
 	file = insert(pdf.fn, tag=c("umap", "clusters2", "clean"))
