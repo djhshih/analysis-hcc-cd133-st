@@ -9,6 +9,7 @@ library(SingleR)
 library(celldex)
 library(msigdbr)
 library(dplyr)
+library(zellkonverter)  # writeH5AD
 
 fdr.cut <- 0.05;
 
@@ -67,7 +68,8 @@ gsets.bp <- msigdbr(species, "C5", "BP");
 
 # ---
 
-in.fn <- "sce/immune_filtered.rds";
+in.fn <- as.filename("sce/immune_filtered.rds");
+h5ad.fn <- insert(in.fn, ext="h5ad", replace=TRUE)
 
 out.fn <- filename("hcc-cd133", path="immune", tag="immune");
 pdf.fn <- insert(out.fn, ext="pdf");
@@ -716,6 +718,7 @@ sce <- runUMAP(sce, dimred="PCA", name="UMAPsub");
 qdraw(
 	ggrastr::rasterize(
 		plotReducedDim(sce, "TSNEsub", colour_by="label2", point_alpha = 0.3) +
+			coord_fixed()
 			coord_fixed() + theme(legend.title = element_blank())
 	),
 	width = 8, height = 8,
@@ -752,4 +755,5 @@ qdraw(
 )
 
 qwrite(sce, in.fn);
+writeH5AD(sce, tag(h5ad.fn));
 
