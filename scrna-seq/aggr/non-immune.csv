@@ -1,0 +1,3 @@
+sample_id,molecule_h5
+Prom1-DTA,/home/davids/data2/stephanie-ma/cd133-st/scrna-seq/cellranger_all/Prom1-DTA/count_Prom1-DTA/outs/molecule_info.h5
+Prom1-WT,/home/davids/data2/stephanie-ma/cd133-st/scrna-seq/cellranger_all/Prom1-WT/count_Prom1-WT/outs/molecule_info.h5
