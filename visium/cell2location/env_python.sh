@@ -8,6 +8,6 @@ conda install -y -c conda-forge \
 	numpy matplotlib pandas \
 	scanpy python-igraph leidenalg scvi-tools stlearn mudata squidpy \
 
+pip install seaborn pyarrow
 pip install git+https://github.com/BayraktarLab/cell2location.git#egg=cell2location[tutorials]
 pip install tangram-sc
-
