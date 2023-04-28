@@ -99,7 +99,8 @@ adata_vis = mod_cl.export_posterior(
 
 pl.axline((0, 0), slope=1, color='grey')
 mod_cl.plot_QC()
-pl.show()
+# TODO save to file
+#pl.show()
 
 # add 5% quantile
 adata_vis.obs[adata_vis.uns['mod']['factor_names']] = \
