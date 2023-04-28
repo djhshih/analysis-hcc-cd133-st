@@ -577,30 +577,44 @@ markers.t <- .markers(sce.t);
 markers.mp <- .markers(sce.mp);
 markers.neut <- .markers(sce.neut);
 
-combine_markers <- function(markers.d) {
+combine_markers <- function(markers.d, sort_by=NULL) {
 	d <- do.call(
 		rbind,
 		mapply(
-			function(cl, d) data.frame(cluster = cl, gene=rownames(d), d, row.names=NULL),
+			function(cl, d) {
+				e <- data.frame(cluster = cl, gene=rownames(d), d, row.names=NULL);
+				if (!is.null(sort_by)) {
+					e <- e[order(e[[sort_by]], decreasing=TRUE), ];
+				}
+			},
 			names(markers.d), markers.d,
 			SIMPLIFY = FALSE
 		)
 	);
+	d$cluster <- factor(d$cluster, levels = names(markers.d));
 	rownames(d) <- NULL;
 	d
 }
 
 markers.t.d <- combine_markers(markers.t$mean);
 qwrite(markers.t.d, insert(csv.fn, c("t-cell", "markers")));
+markers.t.all.d <- combine_markers(markers.t$all, "mean.AUC");
+qwrite(markers.t.all.d, insert(rds.fn, c("t-cell", "markers", "all")));
 
 markers.b.d <- combine_markers(markers.b$mean);
 qwrite(markers.b.d, insert(csv.fn, c("b-cell", "markers")));
+markers.b.all.d <- combine_markers(markers.b$all, "mean.AUC");
+qwrite(markers.b.all.d, insert(rds.fn, c("b-cell", "markers", "all")));
 
 markers.mp.d <- combine_markers(markers.mp$mean);
 qwrite(markers.mp.d, insert(csv.fn, c("mp", "markers")));
+markers.mp.all.d <- combine_markers(markers.mp$all, "mean.AUC");
+qwrite(markers.mp.all.d, insert(rds.fn, c("mp", "markers", "all")));
 
 markers.neut.d <- combine_markers(markers.neut$mean);
 qwrite(markers.mp.d, insert(csv.fn, c("neut", "markers")));
+markers.neut.all.d <- combine_markers(markers.neut$all, "mean.AUC");
+qwrite(markers.neut.all.d, insert(rds.fn, c("neut", "markers", "all")));
 
 # ---
 
