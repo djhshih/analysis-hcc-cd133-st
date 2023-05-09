@@ -54,6 +54,7 @@ d <- Reduce(rbind,
 
 d$gset <- sub(" Macrophage Polarization", "", d$gset);
 d$group <- sub(" macrophage", "", d$group);
+#d$group <- sub(" macrophage-", " ", d$group); # if include condition
 
 output_plot <- plot_graph(d, title = "macrophage");
 
@@ -68,5 +69,5 @@ dim(d_filtered)
 
 output_plot <- plot_graph(d_filtered, title = "macrophage-filtered");
 
-qdraw(output_plot, width = 4, height = 8.5,
+qdraw(output_plot, width = 4, height = 8,
       file = insert(out.fn, c("gene-expr", "m1-m2-gset-filtered"), ext="pdf"))
