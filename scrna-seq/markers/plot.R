@@ -8,9 +8,10 @@ library(dplyr)
 library(ggplot2)
 
 source("../R/common.R");
+source("./plot_common.R");
 
 sce <- qread("../sce/immune_filtered.rds");
-markers <- qread("./t-cell-signatures_azizi18.gmt");
+markers <- qread("./mouse-signature_fixed.gmt"); # t-cell-signatures_azizi18.gmt
 
 out.fn <- filename("immune", tag="mp");
 
@@ -18,45 +19,28 @@ out.fn <- filename("immune", tag="mp");
 sce <- logNormCounts(sce);
 
 sce.mp <- sce[, sce$label.mp.cell != "non-macrophage"];
-dim(sce.mp)
-table(sce.mp$label.mp.cell)
+dim(sce.mp) # [1] 32283  1455
 
-summarize_gset <- function(sce, gset, groups) {
+# if include conditions
+#sce.mp$label.mp.cell.condition <- paste0(sce.mp$label.mp.cell, sce.mp$Sample);
+#sce.mp$label.mp.cell.condition <- sub("Prom1-DTA-IMM", 
+#  "-DTA", sce.mp$label.mp.cell.condition);
+#sce.mp$label.mp.cell.condition <- sub("Prom1-WT-IMM",
+#  "-WT", sce.mp$label.mp.cell.condition);
+#table(sce.mp$label.mp.cell.condition);
 
-	idx <- match(tolower(gset), tolower(rowData(sce)$Symbol));
-	valid <- !is.na(idx);
-	message("unmatched fraction: ", mean(valid))
-	idx.valid <- idx[valid];
-
-	expr <- logcounts(sce[idx.valid, ]);
-
-	ms <- scoreMarkers(expr, groups);
-
-	d <- do.call(rbind, mapply(
-		function(m, k) {
-			data.frame(
-				group = k,
-				gene = rownames(m),
-				logfc = m[, "self.average"] - m[, "other.average"],
-				p_expressed = m[, "self.detected"]
-			)
-		},
-		ms, names(ms),
-		SIMPLIFY = FALSE
-	));
-	rownames(d) <- NULL;
-
-	d
-}
+table(sce.mp$label.mp.cell);
 
 gset.names <- c("M1 Macrophage Polarization", "M2 Macrophage Polarization");
 gsets <- markers$data[gset.names];
 
 clusters <- sce.mp$label.mp.cell;
+#clusters <- sce.mp$label.mp.cell.condition; # if include condition
 
 ds <- lapply(gsets,
 	function(gset) summarize_gset(sce.mp, gset, clusters)
 );
+
 
 # combine the g
 d <- Reduce(rbind, 
@@ -71,39 +55,18 @@ d <- Reduce(rbind,
 d$gset <- sub(" Macrophage Polarization", "", d$gset);
 d$group <- sub(" macrophage", "", d$group);
 
-qdraw(
-	ggplot(d,
-		aes(
-			x = group, y = gene,
-			colour = bound(logfc, c(-1.5, 1.5)),
-			size = p_expressed * 100
-		)
-	) +
-		theme_classic() +
-		labs(title = "macrophage") +
-		geom_point() +
-		facet_grid(gset ~ ., scales="free_y", space="free", switch="y") +
-		scale_colour_gradient2(breaks = (-1):1,
-			low="royalblue4", 
-			mid="grey90",
-			high="orangered2"
-		) +
-		guides(
-			colour = guide_colourbar("log FC"),
-			size = guide_legend("% expressed")
-		) +
-		theme(
-			strip.text.y.left = element_text(angle = 0, hjust=0),
-			strip.background = element_blank(),
-			axis.ticks.y = element_blank(),
-			axis.ticks.x = element_blank(),
-			axis.text.x = element_text(angle = 45, hjust=1)
-		) +
-		scale_size_continuous(range = c(-0.5, 3.5)) +
-		scale_y_discrete(limits = rev) +
-		xlab("") + ylab("")
-	,
-	width = 4, height = 10,
-	file = insert(out.fn, c("gene-expr", "m1-m2-gset"), ext="pdf")
-)
+output_plot <- plot_graph(d, title = "macrophage");
 
+qdraw(output_plot, width = 4, height = 11.5,
+  file = insert(out.fn, c("gene-expr", "m1-m2-gset-unfiltered"), ext="pdf"))
+
+
+# filter low expression
+exprs_cutoff <- 0.1;
+d_filtered <- d[-which(d$p_expressed <= exprs_cutoff), ];
+dim(d_filtered)
+
+output_plot <- plot_graph(d_filtered, title = "macrophage-filtered");
+
+qdraw(output_plot, width = 4, height = 8.5,
+      file = insert(out.fn, c("gene-expr", "m1-m2-gset-filtered"), ext="pdf"))
