@@ -14,6 +14,9 @@ markers <- qread("./t-cell-signatures_azizi18.gmt");
 
 out.fn <- filename("immune", tag="mp");
 
+# re-calculate the logcounts to overcome delayed array error
+sce <- logNormCounts(sce);
+
 sce.mp <- sce[, sce$label.mp.cell != "non-macrophage"];
 dim(sce.mp)
 table(sce.mp$label.mp.cell)
