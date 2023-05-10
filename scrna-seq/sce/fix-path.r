@@ -36,5 +36,5 @@ x <- fix_path(x);
 
 counts(x)
 
-qwrite(x, in.fn, serialize=FALSE);
+qwrite(x, in.fn, deref=FALSE);
 
